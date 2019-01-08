@@ -1,4 +1,4 @@
-﻿/*
+/*
  The MIT License (MIT)
 
 Copyright (c) 2018 Microsoft Corporation
@@ -175,17 +175,17 @@ namespace TodoListClient
         /// When the Web API needs consent, it can sent a 403 with information in the WWW-Authenticate header in 
         /// order to challenge the user
         /// </summary>
-        /// <param name="response">HttpResonse received from the service</param>
+        /// <param name="response">HttpResponse received from the service</param>
+        /// <param name="account">Account</param>
         /// <returns></returns>
         private async Task HandleChallengeFromWebApi(HttpResponseMessage response, IAccount account)
         {
 
             AuthenticationHeaderValue bearer = response.Headers.WwwAuthenticate.First(v => v.Scheme == "Bearer");
-            IEnumerable<string> parameters = bearer.Parameter.Split(',').Select(v => v.Trim()).ToList();
-            string clientId = GetParameter(parameters, "clientId");
-            string claims = GetParameter(parameters, "claims");
-            string[] scopes = GetParameter(parameters, "scopes")?.Split(',');
-            string proposedAction = GetParameter(parameters, "proposedAction");
+            var clientId = GetBearerParameterValue(bearer.Parameter, "clientId");
+            var claims = GetBearerParameterValue(bearer.Parameter, "claims");
+            var scopes = GetBearerParameterValue(bearer.Parameter, "scopes")?.Split(',');
+            var proposedAction = GetBearerParameterValue(bearer.Parameter, "proposedAction");
 
             string loginHint = account?.Username;
             string domainHint = IsConsumerAccount(account) ? "consumers" : "organizations";
@@ -216,12 +216,6 @@ namespace TodoListClient
         {
             const string msaTenantId = "9188040d-6c67-4c5b-b112-36a304b66dad";
             return (Tenant == "common" || Tenant == "consumers") && account?.HomeAccountId.TenantId == msaTenantId;
-        }
-
-        private static string GetParameter(IEnumerable<string> parameters, string parameterName)
-        {
-            int offset = parameterName.Length + 1;
-            return parameters.FirstOrDefault(p => p.StartsWith($"{parameterName}="))?.Substring(offset)?.Trim('"');
         }
 
         private async void AddTodoItem(object sender, RoutedEventArgs e)
@@ -369,6 +363,18 @@ namespace TodoListClient
                 userName = Properties.Resources.UserNotIdentified;
 
             UserName.Content = userName;
+        }
+
+        private static string GetBearerParameterValue(string parameter, string parameterName)
+        {
+            var parameterIndex = parameter.IndexOf($"{parameterName}=\"", StringComparison.InvariantCultureIgnoreCase);
+            if (parameterIndex != -1)
+            {
+                var parameterValueStartIndex = parameterIndex + parameterName.Length + 2;
+                var parameterValueLength = parameter.IndexOf('"', parameterValueStartIndex) - parameterValueStartIndex;
+                return parameter.Substring(parameterValueStartIndex, parameterValueLength);
+            }
+            return null;
         }
     }
 }
